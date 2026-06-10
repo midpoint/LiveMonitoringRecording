@@ -1,13 +1,11 @@
 package cn.zhangheng.lmr;
 
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import cn.zhangheng.common.bean.Constant;
 import cn.zhangheng.common.bean.Room;
 import cn.zhangheng.common.bean.Setting;
 import cn.zhangheng.common.bean.enums.RunMode;
-import cn.zhangheng.common.util.TrayIconUtil;
 import cn.zhangheng.douyin.browser.DouYinBrowserFactory;
 import cn.zhangheng.lmr.fileModeApi.LocalServerApi;
 import com.zhangheng.util.ThrowableUtil;
@@ -48,7 +46,11 @@ public class FileModeMain {
     private static LocalServerApi serverApi;
     private static final AtomicInteger runCount = new AtomicInteger(0);
 
+    /** 目录扫描间隔（秒） */
+    private static final int SCAN_INTERVAL_SEC = 10;
+
     public static void main(String[] args) throws Exception {
+        ScheduledExecutorService watcher = null;
         try {
             String path;
             if (args.length > 0) {
@@ -56,52 +58,56 @@ public class FileModeMain {
             } else {
                 path = basePath;
             }
-            List<Path> paths = retrieveFile(path, fileSuffix);
-            if (paths.isEmpty()) {
-                TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
-                String message = StrUtil.format("{} 路径下没有获取到监听的直播间文件[{}]", path, fileSuffix);
-                iconUtil.notifyMessage(message, TrayIcon.MessageType.WARNING);
-                log.warn(message);
-                TimeUnit.SECONDS.sleep(3);
-                iconUtil.shutdown();
-                return;
-            }
             Setting setting = new Setting();
             // 激活验证已移除
-            // try {
-            //     ActivationUtil.verifyActivationCodeFile(Constant.deviceUniqueId, setting.getActivateVoucherPath());
-            // } catch (ErrorException errorException) {
-            //     String message = ThrowableUtil.getAllCauseMessage(errorException);
-            //     TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
-            //     iconUtil.notifyMessage(errorException.getMessage(), TrayIcon.MessageType.ERROR);
-            //     log.error("启动失败！{}", message);
-            //     TimeUnit.SECONDS.sleep(3);
-            //     iconUtil.shutdown();
-            //     return;
-            // } catch (WarnException warnException) {
-            //     TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
-            //     String message = warnException.getMessage();
-            //     log.warn(message);
-            //     iconUtil.notifyMessage(message, TrayIcon.MessageType.WARNING);
-            //     TimeUnit.SECONDS.sleep(3);
-            //     iconUtil.shutdown();
-            // }
 
             serverApi = new LocalServerApi(Constant.monitorServerPort);
             serverApi.start();
-            int coreSize = Math.min(paths.size(), setting.getMaxMonitorThreads());
-            ThreadPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(coreSize);
-            log.info("启动监听线程数：{}个", coreSize);
-            for (int i = 0; i < coreSize; i++) {
+
+            // 初始扫描
+            List<Path> paths = retrieveFile(path, fileSuffix);
+            if (paths.isEmpty()) {
+                log.info("{} 路径下暂无监听文件[{}]，等待新增...", path, fileSuffix);
+            }
+
+            // 使用最大线程数的线程池，支持后续新增
+            int maxThreads = setting.getMaxMonitorThreads();
+            ThreadPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(maxThreads);
+            log.info("启动监听线程池：最大{}个线程", maxThreads);
+
+            // 启动初始文件的监听
+            for (int i = 0; i < paths.size(); i++) {
                 Path file = paths.get(i);
-                ThreadPool.execute(() -> {
-                    startMonitor(file);
-                });
+                ThreadPool.execute(() -> startMonitor(file));
                 try {
-                    TimeUnit.SECONDS.sleep(i);
+                    TimeUnit.SECONDS.sleep(1);
                 } catch (InterruptedException ignored) {
                 }
             }
+
+            // 定时扫描目录，发现新增文件自动启动监听
+            final String scanPath = path;
+            watcher = Executors.newSingleThreadScheduledExecutor();
+            watcher.scheduleWithFixedDelay(() -> {
+                Thread.currentThread().setName("file-watcher");
+                try {
+                    List<Path> currentFiles = retrieveFile(scanPath, fileSuffix);
+                    for (Path f : currentFiles) {
+                        if (!roomFileMap.containsKey(f)) {
+                            log.info("发现新增监听文件: {}", f);
+                            try {
+                                ThreadPool.execute(() -> startMonitor(f));
+                            } catch (RejectedExecutionException e) {
+                                log.warn("线程池已满，无法启动新监听: {}", f);
+                            }
+                        }
+                    }
+                    // 清理已删除文件的记录
+                    roomFileMap.keySet().removeIf(k -> !currentFiles.contains(k));
+                } catch (Exception e) {
+                    log.error("扫描监听文件异常: {}", e.getMessage());
+                }
+            }, SCAN_INTERVAL_SEC, SCAN_INTERVAL_SEC, TimeUnit.SECONDS);
 
         } catch (Exception e) {
             log.error(e.getMessage(), e);
@@ -109,11 +115,13 @@ public class FileModeMain {
             if (ThreadPool != null) {
                 ThreadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             }
+            if (watcher != null) {
+                watcher.shutdownNow();
+            }
             if (serverApi != null) {
                 serverApi.stop();
             }
         }
-
 
     }
 
@@ -175,11 +183,7 @@ public class FileModeMain {
             DouYinBrowserFactory.closeBrowser();
         }
         log.info("{}个监听运行情况：{}", runCount.get(), platformMap);
-        if (runCount.get() < 1) {
-            log.debug("没有监听任务，程序结束！");
-            ThreadPool.shutdownNow();
-            System.exit(0);
-        }
+        // 不再主动退出 —— watcher 线程持续扫描新文件
 //        executeFileMap.remove(model.getId());
     }
 
