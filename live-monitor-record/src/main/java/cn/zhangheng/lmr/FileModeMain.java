@@ -21,6 +21,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -45,6 +46,8 @@ public class FileModeMain {
     private static final ConcurrentHashMap<Room.Platform, Integer> platformMap = new ConcurrentHashMap<>();
     private static LocalServerApi serverApi;
     private static final AtomicInteger runCount = new AtomicInteger(0);
+    /** 已提交但尚未开始执行的文件，防止重复提交 */
+    private static final Set<Path> pendingFiles = ConcurrentHashMap.newKeySet();
 
     /** 目录扫描间隔（秒） */
     private static final int SCAN_INTERVAL_SEC = 10;
@@ -75,9 +78,11 @@ public class FileModeMain {
             ThreadPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(maxThreads);
             log.info("启动监听线程池：最大{}个线程", maxThreads);
 
-            // 启动初始文件的监听
+            // 启动初始文件的监听（先预加载使界面可见，再提交执行）
             for (int i = 0; i < paths.size(); i++) {
                 Path file = paths.get(i);
+                parseRoomFile(file);
+                pendingFiles.add(file);
                 ThreadPool.execute(() -> startMonitor(file));
                 try {
                     TimeUnit.SECONDS.sleep(1);
@@ -93,17 +98,25 @@ public class FileModeMain {
                 try {
                     List<Path> currentFiles = retrieveFile(scanPath, fileSuffix);
                     for (Path f : currentFiles) {
-                        if (!roomFileMap.containsKey(f)) {
+                        // 已在运行或已提交排队中的跳过
+                        if (roomFileMap.containsKey(f) || pendingFiles.contains(f)) {
+                            continue;
+                        }
+                        // 先解析预加载，使界面可见
+                        if (parseRoomFile(f) != null) {
                             log.info("发现新增监听文件: {}", f);
+                            pendingFiles.add(f);
                             try {
                                 ThreadPool.execute(() -> startMonitor(f));
                             } catch (RejectedExecutionException e) {
+                                pendingFiles.remove(f);
                                 log.warn("线程池已满，无法启动新监听: {}", f);
                             }
                         }
                     }
                     // 清理已删除文件的记录
                     roomFileMap.keySet().removeIf(k -> !currentFiles.contains(k));
+                    pendingFiles.removeIf(k -> !currentFiles.contains(k));
                 } catch (Exception e) {
                     log.error("扫描监听文件异常: {}", e.getMessage());
                 }
@@ -134,6 +147,33 @@ public class FileModeMain {
         }
     }
 
+    /**
+     * 解析监听文件并预创建 RoomFileModel（不启动监听），立即加入 roomFileMap 使界面可见。
+     * @return RoomFileModel 或 null（解析失败）
+     */
+    private static RoomFileModel parseRoomFile(Path file) {
+        try {
+            String s = String.join("", Files.readAllLines(file));
+            JSONObject json = JSONUtil.parseObj(s);
+            String id = json.getStr("id");
+            Room.Platform platform = json.get("platform", Room.Platform.class);
+            if (id == null || platform == null) {
+                log.warn("{} 文件格式无效: id或platform缺失", file);
+                return null;
+            }
+            String key = platform.name() + "-" + id;
+            RoomFileModel model = new RoomFileModel();
+            model.setId(key);
+            model.setFilePath(file);
+            roomFileMap.put(file, model);
+            log.info("预加载监听文件: {} -> {}", file, key);
+            return model;
+        } catch (Exception e) {
+            log.warn("解析监听文件失败 {}: {}", file, e.getMessage());
+            return null;
+        }
+    }
+
     public static void startMonitor(Path file) {
         String key;
         RoomFileModel model = null;
@@ -153,19 +193,23 @@ public class FileModeMain {
             //直播间标识
             key = platform.name() + "-" + id;
             Thread.currentThread().setName(key);
-            model = new RoomFileModel();
-            model.setId(key);
-            model.setFilePath(file);
-//            executeFileMap.put(key, file);
-            roomFileMap.put(file, model);
+            // 复用 parseRoomFile 预创建的 model，或新建
+            model = roomFileMap.get(file);
+            if (model == null) {
+                model = new RoomFileModel();
+                model.setId(key);
+                model.setFilePath(file);
+                roomFileMap.put(file, model);
+            }
+            pendingFiles.remove(file);
             Main main = new Main();
             model.setMain(main);
             runCount.incrementAndGet();
             platformMap.compute(platform, (k, v) -> v == null ? 1 : v + 1);
-            log.debug("{} 监听文件开始运行!", file);
+            log.info("{} 监听开始运行!", file);
             model.setStartTime();
             main.start(setting, id, platform, isRecord);
-            log.debug("{} 监听文件结束运行!", file);
+            log.info("{} 监听结束运行!", file);
         } catch (Throwable e) {
             log.error(file + " 监听发生异常:" + e.getMessage(), e);
         } finally {
@@ -217,14 +261,25 @@ public class FileModeMain {
         Map<String, Object> platformData = new HashMap<>();
         for (RoomFileModel model : roomFileMap.values()) {
             Map<String, Object> counter = new HashMap<>();
-            Room room = model.getMain().getMonitorMain().getRoom();
-            counter.put("name", room.getNickname());
-            counter.put("url", room.getRoomUrl());
-            counter.put("platform", room.getPlatform().getName());
-            counter.put("living", room.isLiving());
-            counter.put("intervalSec", room.getSetting().getDelayIntervalSec());
-            counter.put("count", model.getMain().getMonitorMain().getRoomMonitor().getCount());
-            counter.put("updateTime", TimeUtil.toTime(room.getUpdateTime()));
+            if (model.getMain() != null && model.getMain().getMonitorMain() != null) {
+                Room room = model.getMain().getMonitorMain().getRoom();
+                counter.put("name", room.getNickname());
+                counter.put("url", room.getRoomUrl());
+                counter.put("platform", room.getPlatform().getName());
+                counter.put("living", room.isLiving());
+                counter.put("intervalSec", room.getSetting().getDelayIntervalSec());
+                counter.put("count", model.getMain().getMonitorMain().getRoomMonitor().getCount());
+                counter.put("updateTime", TimeUtil.toTime(room.getUpdateTime()));
+            } else {
+                // pending 状态：尚未开始执行
+                counter.put("name", model.getId());
+                counter.put("url", "");
+                counter.put("platform", "");
+                counter.put("living", false);
+                counter.put("intervalSec", 0);
+                counter.put("count", 0);
+                counter.put("updateTime", "等待中...");
+            }
             platformData.put(model.getId(), counter);
         }
         return platformData;
