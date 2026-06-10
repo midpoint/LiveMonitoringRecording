@@ -16,7 +16,7 @@
         <module>live-monitor-record</module>
         <module>kuaishou-start</module>
         <!--该模块为可选，可直接注释掉-->
-        <module>activation-tool</module>
+        <!--<module>activation-tool</module>-->
         <module>browser-utils</module>
         <module>douyin-fetcher</module>
         <module>cpolar-tool</module>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.28</version>
+            <version>1.18.36</version>
             <scope>provided</scope>
         </dependency>
 

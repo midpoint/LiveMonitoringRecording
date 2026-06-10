@@ -3,9 +3,6 @@ package cn.zhangheng.lmr;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import cn.zhangheng.common.activation.ActivationUtil;
-import cn.zhangheng.common.activation.ErrorException;
-import cn.zhangheng.common.activation.WarnException;
 import cn.zhangheng.common.bean.Constant;
 import cn.zhangheng.common.bean.Room;
 import cn.zhangheng.common.bean.Setting;
@@ -70,24 +67,25 @@ public class FileModeMain {
                 return;
             }
             Setting setting = new Setting();
-            try {
-                ActivationUtil.verifyActivationCodeFile(Constant.deviceUniqueId, setting.getActivateVoucherPath());
-            } catch (ErrorException errorException) {
-                String message = ThrowableUtil.getAllCauseMessage(errorException);
-                TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
-                iconUtil.notifyMessage(errorException.getMessage(), TrayIcon.MessageType.ERROR);
-                log.error("启动失败！{}", message);
-                TimeUnit.SECONDS.sleep(3);
-                iconUtil.shutdown();
-                return;
-            } catch (WarnException warnException) {
-                TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
-                String message = warnException.getMessage();
-                log.warn(message);
-                iconUtil.notifyMessage(message, TrayIcon.MessageType.WARNING);
-                TimeUnit.SECONDS.sleep(3);
-                iconUtil.shutdown();
-            }
+            // 激活验证已移除
+            // try {
+            //     ActivationUtil.verifyActivationCodeFile(Constant.deviceUniqueId, setting.getActivateVoucherPath());
+            // } catch (ErrorException errorException) {
+            //     String message = ThrowableUtil.getAllCauseMessage(errorException);
+            //     TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
+            //     iconUtil.notifyMessage(errorException.getMessage(), TrayIcon.MessageType.ERROR);
+            //     log.error("启动失败！{}", message);
+            //     TimeUnit.SECONDS.sleep(3);
+            //     iconUtil.shutdown();
+            //     return;
+            // } catch (WarnException warnException) {
+            //     TrayIconUtil iconUtil = TrayIconUtil.getInstance(Constant.Application);
+            //     String message = warnException.getMessage();
+            //     log.warn(message);
+            //     iconUtil.notifyMessage(message, TrayIcon.MessageType.WARNING);
+            //     TimeUnit.SECONDS.sleep(3);
+            //     iconUtil.shutdown();
+            // }
 
             serverApi = new LocalServerApi(Constant.monitorServerPort);
             serverApi.start();

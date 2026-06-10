@@ -3,10 +3,6 @@ package cn.zhangheng.common.service;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
-import cn.zhangheng.common.activation.ActivationUtil;
-import cn.zhangheng.common.activation.DeviceInfoCollector;
-import cn.zhangheng.common.activation.ErrorException;
-import cn.zhangheng.common.activation.WarnException;
 import cn.zhangheng.common.bean.Constant;
 import cn.zhangheng.common.bean.Room;
 import cn.zhangheng.common.bean.Setting;
@@ -58,22 +54,23 @@ public abstract class ApplicationMain<R extends Room> {
 
     public void start(Setting setting, String[] args) {
         System.out.println(getBanner());
-        try {
-            ActivationUtil.verifyActivationCodeFile(Constant.deviceUniqueId, new Setting().getActivateVoucherPath());
-        } catch (ErrorException errorException) {
-            String message = ThrowableUtil.getAllCauseMessage(errorException);
-            log.error(message, errorException);
-            try {
-                System.out.println("程序即将自动退出......");
-                TimeUnit.SECONDS.sleep(3);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            System.exit(0);
-        } catch (WarnException warnException) {
-            String message = warnException.getMessage();
-            log.warn(message);
-        }
+        // 激活验证已移除
+        // try {
+        //     ActivationUtil.verifyActivationCodeFile(Constant.deviceUniqueId, new Setting().getActivateVoucherPath());
+        // } catch (ErrorException errorException) {
+        //     String message = ThrowableUtil.getAllCauseMessage(errorException);
+        //     log.error(message, errorException);
+        //     try {
+        //         System.out.println("程序即将自动退出......");
+        //         TimeUnit.SECONDS.sleep(3);
+        //     } catch (InterruptedException e) {
+        //         throw new RuntimeException(e);
+        //     }
+        //     System.exit(0);
+        // } catch (WarnException warnException) {
+        //     String message = warnException.getMessage();
+        //     log.warn(message);
+        // }
         Room.Platform[] platforms = supportedPlatforms();
         String platformsStr = supportedPlatformsStr(platforms);
         System.out.println(Constant.Application + " - " + platformsStr);
