@@ -257,6 +257,10 @@ public class FileModeMain {
         return roomFileMap.values().stream().filter(m -> m.getId().equals(id)).findFirst().orElse(null);
     }
 
+    public static ConcurrentHashMap<Path, RoomFileModel> getRoomFileMap() {
+        return roomFileMap;
+    }
+
     public static Map<String, Object> getCounter() {
         Map<String, Object> platformData = new HashMap<>();
         for (RoomFileModel model : roomFileMap.values()) {

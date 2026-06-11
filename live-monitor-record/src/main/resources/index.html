@@ -151,6 +151,15 @@
                         class="ml-4 p-1.5 rounded-full hover:bg-primary/10 text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
                     <i class="fa fa-refresh"></i>
                 </button>
+                <!-- 一键操作按钮 -->
+                <button id="start-all-btn" onclick="actionStartAll()"
+                        class="ml-4 px-3 py-1.5 bg-success text-white rounded-lg text-sm hover:bg-success/80 transition-colors focus:outline-none">
+                    <i class="fa fa-play mr-1"></i>全部开启监控
+                </button>
+                <button id="stop-all-btn" onclick="actionStopAll()"
+                        class="ml-2 px-3 py-1.5 bg-danger text-white rounded-lg text-sm hover:bg-danger/80 transition-colors focus:outline-none">
+                    <i class="fa fa-stop mr-1"></i>全部停止监控
+                </button>
             </div>
         </div>
 
@@ -802,6 +811,34 @@
                 actionKey: key,
             }).then((data) => {
                 data.title = "监听操作结果";
+                showActionAfterModal(data);
+                if (data.code === 0) {
+                    handleManualRefresh();
+                }
+            });
+        });
+    }
+
+    function actionStartAll() {
+        showActionBeforeModal((key) => {
+            actionRequest("startAll", {
+                actionKey: key,
+            }).then((data) => {
+                data.title = "批量操作结果";
+                showActionAfterModal(data);
+                if (data.code === 0) {
+                    handleManualRefresh();
+                }
+            });
+        });
+    }
+
+    function actionStopAll() {
+        showActionBeforeModal((key) => {
+            actionRequest("stopAll", {
+                actionKey: key,
+            }).then((data) => {
+                data.title = "批量操作结果";
                 showActionAfterModal(data);
                 if (data.code === 0) {
                     handleManualRefresh();

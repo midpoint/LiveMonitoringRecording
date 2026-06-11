@@ -102,6 +102,22 @@ public class ActionHandler extends JSONHandler {
             } else if (indexPath.startsWith("videoParsing")) {
                 Map<String, String> query = parseQuery(httpExchange);
                 videoParsing(msg, query);
+            } else if (indexPath.startsWith("startAll")) {
+                Map<String, String> query = parseQuery(httpExchange);
+                if ("127.0.0.1".equals(getClientIP(httpExchange))) query.put("actionKey", Constant.deviceUniqueId);
+                if (checkActionKey(query, msg)) {
+                    actionStartAll(msg);
+                } else {
+                    msg.setCode(1);
+                }
+            } else if (indexPath.startsWith("stopAll")) {
+                Map<String, String> query = parseQuery(httpExchange);
+                if ("127.0.0.1".equals(getClientIP(httpExchange))) query.put("actionKey", Constant.deviceUniqueId);
+                if (checkActionKey(query, msg)) {
+                    actionStopAll(msg);
+                } else {
+                    msg.setCode(1);
+                }
             } else {
                 msg.setCode(1);
                 msg.setMessage("访问的接口路径不存在！" + prefix + indexPath);
@@ -252,6 +268,41 @@ public class ActionHandler extends JSONHandler {
         res.put("remainingThreads", remainingThreads);
         msg.setData(res);
         msg.setMessage(StrUtil.format("核心线程数: {}， 正在工作的线程数: {}, 剩余可用线程数: {}", corePoolSize, activeCount, remainingThreads));
+    }
+
+    private void actionStartAll(Message msg) {
+        int started = 0, alreadyRunning = 0;
+        for (RoomFileModel model : FileModeMain.getRoomFileMap().values()) {
+            if (model.getMain() != null && model.getMain().getMonitorMain() != null) {
+                if (model.getMain().getMonitorMain().getIsRunning()) {
+                    alreadyRunning++;
+                } else {
+                    try {
+                        FileModeMain.restartMain(model.getId());
+                        started++;
+                    } catch (Exception e) {
+                        System.err.println("重启监听失败[" + model.getId() + "]: " + e.getMessage());
+                    }
+                }
+            }
+        }
+        msg.setMessage(StrUtil.format("已启动{}个监听, {}个已在运行", started, alreadyRunning));
+    }
+
+    private void actionStopAll(Message msg) {
+        int stopped = 0, alreadyStopped = 0;
+        for (RoomFileModel model : FileModeMain.getRoomFileMap().values()) {
+            if (model.getMain() != null && model.getMain().getMonitorMain() != null) {
+                if (model.getMain().getMonitorMain().getIsRunning()) {
+                    model.getMain().getMonitorMain().setIsForceStop(true);
+                    model.getMain().getMonitorMain().stop();
+                    stopped++;
+                } else {
+                    alreadyStopped++;
+                }
+            }
+        }
+        msg.setMessage(StrUtil.format("已停止{}个监听, {}个已处于停止状态", stopped, alreadyStopped));
     }
 
     private void videoParsing(Message msg, Map<String, String> query) {
