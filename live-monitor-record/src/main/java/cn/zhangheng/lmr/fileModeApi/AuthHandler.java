@@ -8,6 +8,7 @@ import com.zhangheng.bean.Message;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -15,6 +16,7 @@ import java.util.Map;
  *
  * POST /auth/login   body: {"password":"xxx"}  → {"code":0,"data":{"token":"..."}}
  * POST /auth/verify  body: {"token":"xxx"}     → {"code":0,"data":{"lockTimeoutMs":600000}}
+ * POST /auth/config  (no body needed)          → {"code":0,"data":{"enabled":true,"lockTimeoutMs":600000}}
  *
  * @author: midpoint
  * @date: 2026/06/11
@@ -27,8 +29,15 @@ public class AuthHandler extends JSONHandler {
     }
 
     @Override
+    protected boolean filter(HttpExchange httpExchange) throws IOException {
+        log.debug("AuthHandler 收到请求: {} {}", httpExchange.getRequestMethod(), httpExchange.getRequestURI().getPath());
+        return true;
+    }
+
+    @Override
     public void request(HttpExchange httpExchange) throws IOException {
         String indexPath = getIndexPath(httpExchange, prefix);
+        log.info("AuthHandler 处理: indexPath={}", indexPath);
         Message<Object> msg = new Message<>();
 
         try {
@@ -40,14 +49,15 @@ public class AuthHandler extends JSONHandler {
                 handleConfig(msg);
             } else {
                 msg.setCode(1);
-                msg.setMessage("未知的认证接口");
+                msg.setMessage("未知的认证接口: " + indexPath);
             }
         } catch (Exception e) {
             msg.setCode(1);
             msg.setMessage("认证处理异常: " + e.getMessage());
-            log.error("AuthHandler 异常", e);
+            log.error("AuthHandler 异常, indexPath={}", indexPath, e);
         }
 
+        log.info("AuthHandler 响应: code={}, message={}", msg.getCode(), msg.getMessage());
         responseJson(httpExchange, msg);
     }
 
@@ -60,9 +70,9 @@ public class AuthHandler extends JSONHandler {
         String token = am.login(password);
 
         if (token != null) {
-            JSONObject data = new JSONObject();
-            data.set("token", token);
-            data.set("lockTimeoutMs", am.getLockTimeoutMs());
+            Map<String, Object> data = new HashMap<>();
+            data.put("token", token);
+            data.put("lockTimeoutMs", am.getLockTimeoutMs());
             msg.setData(data);
             msg.setMessage("登录成功");
         } else {
@@ -78,16 +88,15 @@ public class AuthHandler extends JSONHandler {
 
         AuthManager am = AuthManager.getInstance();
         if (!am.isEnabled()) {
-            // 未启用密码保护，直接放行
-            JSONObject data = new JSONObject();
-            data.set("enabled", false);
+            Map<String, Object> data = new HashMap<>();
+            data.put("enabled", false);
             msg.setData(data);
             return;
         }
 
         if (am.verify(token)) {
-            JSONObject data = new JSONObject();
-            data.set("lockTimeoutMs", am.getLockTimeoutMs());
+            Map<String, Object> data = new HashMap<>();
+            data.put("lockTimeoutMs", am.getLockTimeoutMs());
             msg.setData(data);
         } else {
             msg.setCode(1);
@@ -97,9 +106,10 @@ public class AuthHandler extends JSONHandler {
 
     private void handleConfig(Message<Object> msg) {
         AuthManager am = AuthManager.getInstance();
-        JSONObject data = new JSONObject();
-        data.set("enabled", am.isEnabled());
-        data.set("lockTimeoutMs", am.getLockTimeoutMs());
+        Map<String, Object> data = new HashMap<>();
+        data.put("enabled", am.isEnabled());
+        data.put("lockTimeoutMs", am.getLockTimeoutMs());
         msg.setData(data);
+        log.info("AuthHandler config: enabled={}, lockTimeoutMs={}", am.isEnabled(), am.getLockTimeoutMs());
     }
 }
