@@ -1,0 +1,8 @@
+{
+    "id": "123456789",
+    "platform": "DouYin",
+    "isRecord": true,
+    "setting": {
+        "runMode": "FILE"
+    }
+}

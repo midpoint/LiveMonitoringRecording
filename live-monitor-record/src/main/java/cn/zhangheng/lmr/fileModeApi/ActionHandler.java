@@ -324,7 +324,7 @@ public class ActionHandler extends JSONHandler {
     private synchronized void actionAddRoom(Message msg, Map<String, String> query) {
         String platformStr = query.get("platform");
         String roomId = query.get("roomId");
-        boolean isRecord = Boolean.parseBoolean(query.getOrDefault("isRecord", "true"));
+        boolean isRecord = Boolean.parseBoolean(query.getOrDefault("isRecord", "false"));
 
         if (StrUtil.isBlank(platformStr) || StrUtil.isBlank(roomId)) {
             msg.setCode(1);
@@ -352,11 +352,14 @@ public class ActionHandler extends JSONHandler {
         try {
             // 构造 .room.json 文件内容
             JSONObject roomJson = new JSONObject();
+            roomJson.set("isRecord", isRecord);
             roomJson.set("id", roomId);
             roomJson.set("platform", platform.name());
-            roomJson.set("isRecord", isRecord);
             JSONObject settingJson = new JSONObject();
             settingJson.set("runMode", "FILE");
+            settingJson.set("xiZhiUrl", "");
+            settingJson.set("delayIntervalSec", 30);
+            settingJson.set("openSubtitle", true);
             roomJson.set("setting", settingJson);
 
             // 写入文件
