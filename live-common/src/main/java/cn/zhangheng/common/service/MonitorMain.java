@@ -111,7 +111,10 @@ public abstract class MonitorMain<R extends Room, M extends RoomMonitor<R, ?>> {
             int i = 1;
             while (getIsRunning() && room.getNickname() == null) {
                 if (i == 6) {
-                    throw new RuntimeException(room.getRoomUrl() + " 直播间初始化异常；获取直播间信息失败");
+                    // 5次重试后仍未获取到昵称，用 roomId 作备用名，继续监控（等开播后 API 会更新正确的昵称）
+                    log.warn("{} 未能获取昵称，使用房间ID作为备用名继续监控", room.getRoomUrl());
+                    room.setNickname(room.getId());
+                    break;
                 }
                 try {
                     TimeUnit.SECONDS.sleep(i);

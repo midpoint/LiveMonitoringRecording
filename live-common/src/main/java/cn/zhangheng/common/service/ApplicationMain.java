@@ -179,9 +179,16 @@ public abstract class ApplicationMain<R extends Room> {
                 }
                 room.reset();//重置直播间
                 room.setSetting(srcSetting);
-                monitorMain = getMonitorMain(room);
-                monitorMain.start(room, isRecord);
-                isLoop = !monitorMain.getIsForceStop() && room.getSetting().isLoop();
+                // 确保 isLoop 不被 .room.json 覆盖（原始 boolean 默认 false）
+                isLoop = room.getSetting().isLoop();
+                try {
+                    monitorMain = getMonitorMain(room);
+                    monitorMain.start(room, isRecord);
+                } catch (Exception e) {
+                    log.error("{} 监听异常, 等待后重试: {}", room.getRoomUrl(), ThrowableUtil.getAllCauseMessage(e));
+                    try { TimeUnit.SECONDS.sleep(10); } catch (InterruptedException ignored) {}
+                }
+                isLoop = isLoop && !monitorMain.getIsForceStop();
             } while (isLoop);
         } finally {
             iconUtil.shutdown();
