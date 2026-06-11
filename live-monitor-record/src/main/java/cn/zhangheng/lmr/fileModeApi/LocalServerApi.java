@@ -45,6 +45,7 @@ public class LocalServerApi {
                 server.createContext("/fonts", new StreamFileHandler("/fonts/", "application/octet-stream"));
                 server.createContext("/api", new ApiHandler("/api/"));
                 server.createContext("/action", new ActionHandler("/action/"));
+                server.createContext("/auth", new AuthHandler("/auth/"));
                 server.createContext("/proxy", new ProxyHandler());
                 server.createContext("/fileRes", new FileResourcesHandler("/fileRes/"));
                 server.createContext("/client-info", new ClientHandler());

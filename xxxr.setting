@@ -35,3 +35,7 @@ Cookie.Bilibili=
 Cookie.DouYin=
 #快手的Cookie
 Cookie.KuaiShou=
+#网页监控面板访问密码（为空则不启用密码保护）
+server.password=
+#网页监控面板无操作自动锁屏时间（分钟），默认10
+server.lockTimeoutMin=10

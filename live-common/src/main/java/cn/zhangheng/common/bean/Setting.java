@@ -180,4 +180,17 @@ public class Setting {
     @ToString.Exclude
     private String cookieKuaiShou;
 
+    /**
+     * 网页监控面板访问密码（为空则不启用密码保护）
+     */
+    @PropertyValue("server.password")
+    @ToString.Exclude
+    private String webPassword;
+
+    /**
+     * 网页监控面板无操作自动锁屏时间（分钟），默认10分钟
+     */
+    @PropertyValue("server.lockTimeoutMin")
+    private int lockTimeoutMin = 10;
+
 }

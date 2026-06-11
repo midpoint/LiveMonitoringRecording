@@ -6,6 +6,7 @@ import cn.zhangheng.common.bean.Constant;
 import cn.zhangheng.common.bean.Room;
 import cn.zhangheng.common.bean.Setting;
 import cn.zhangheng.common.bean.enums.RunMode;
+import cn.zhangheng.common.httpServer.auth.AuthManager;
 import cn.zhangheng.douyin.browser.DouYinBrowserFactory;
 import cn.zhangheng.lmr.fileModeApi.LocalServerApi;
 import com.zhangheng.util.ThrowableUtil;
@@ -63,6 +64,9 @@ public class FileModeMain {
             }
             Setting setting = new Setting();
             // 激活验证已移除
+
+            // 初始化网页认证管理器
+            AuthManager.init(setting);
 
             serverApi = new LocalServerApi(Constant.monitorServerPort);
             serverApi.start();
