@@ -45,6 +45,8 @@ public class FileModeMain {
     private static final ConcurrentHashMap<Path, RoomFileModel> roomFileMap = new ConcurrentHashMap<>();
     @Getter
     private static final ConcurrentHashMap<Room.Platform, Integer> platformMap = new ConcurrentHashMap<>();
+    @Getter
+    private static String monitorDirPath = basePath;
     private static LocalServerApi serverApi;
     private static final AtomicInteger runCount = new AtomicInteger(0);
     /** 已提交但尚未开始执行的文件，防止重复提交 */
@@ -62,6 +64,7 @@ public class FileModeMain {
             } else {
                 path = basePath;
             }
+            monitorDirPath = path;
             Setting setting = new Setting();
             // 激活验证已移除
 

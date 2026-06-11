@@ -1,10 +1,13 @@
 package cn.zhangheng.lmr.fileModeApi;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import cn.zhangheng.common.bean.Constant;
 import cn.zhangheng.common.httpServer.handle.JSONHandler;
 import cn.zhangheng.common.service.MonitorMain;
 import cn.zhangheng.common.bean.Room;
+import cn.zhangheng.common.bean.Setting;
 import cn.zhangheng.common.bean.enums.MonitorStatus;
 import cn.zhangheng.common.record.Recorder;
 import cn.zhangheng.douyin.bean.DouYinVideo;
@@ -18,8 +21,13 @@ import com.zhangheng.bean.Message;
 import com.zhangheng.util.ThrowableUtil;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 
@@ -115,6 +123,14 @@ public class ActionHandler extends JSONHandler {
                 if ("127.0.0.1".equals(getClientIP(httpExchange))) query.put("actionKey", Constant.deviceUniqueId);
                 if (checkActionKey(query, msg)) {
                     actionStopAll(msg);
+                } else {
+                    msg.setCode(1);
+                }
+            } else if (indexPath.startsWith("addRoom")) {
+                Map<String, String> query = parseQuery(httpExchange);
+                if ("127.0.0.1".equals(getClientIP(httpExchange))) query.put("actionKey", Constant.deviceUniqueId);
+                if (checkActionKey(query, msg)) {
+                    actionAddRoom(msg, query);
                 } else {
                     msg.setCode(1);
                 }
@@ -303,6 +319,74 @@ public class ActionHandler extends JSONHandler {
             }
         }
         msg.setMessage(StrUtil.format("已停止{}个监听, {}个已处于停止状态", stopped, alreadyStopped));
+    }
+
+    private synchronized void actionAddRoom(Message msg, Map<String, String> query) {
+        String platformStr = query.get("platform");
+        String roomId = query.get("roomId");
+        boolean isRecord = Boolean.parseBoolean(query.getOrDefault("isRecord", "true"));
+
+        if (StrUtil.isBlank(platformStr) || StrUtil.isBlank(roomId)) {
+            msg.setCode(1);
+            msg.setMessage("平台和直播间ID不能为空");
+            return;
+        }
+
+        Room.Platform platform;
+        try {
+            platform = Room.Platform.valueOf(platformStr);
+        } catch (IllegalArgumentException e) {
+            msg.setCode(1);
+            msg.setMessage("不支持的平台: " + platformStr + "，支持: DouYin, Bili, KuaiShou");
+            return;
+        }
+
+        String key = platform.name() + "-" + roomId;
+        // 检查是否已存在
+        if (FileModeMain.getModelById(key) != null) {
+            msg.setCode(1);
+            msg.setMessage("直播间 [" + key + "] 已在监控列表中");
+            return;
+        }
+
+        try {
+            // 构造 .room.json 文件内容
+            JSONObject roomJson = new JSONObject();
+            roomJson.set("id", roomId);
+            roomJson.set("platform", platform.name());
+            roomJson.set("isRecord", isRecord);
+            JSONObject settingJson = new JSONObject();
+            settingJson.set("runMode", "FILE");
+            roomJson.set("setting", settingJson);
+
+            // 写入文件
+            String fileName = roomId + ".room.json";
+            Path dirPath = Paths.get(FileModeMain.getMonitorDirPath());
+            if (!Files.exists(dirPath)) {
+                Files.createDirectories(dirPath);
+            }
+            Path filePath = dirPath.resolve(fileName);
+            Files.write(filePath, roomJson.toStringPretty().getBytes(StandardCharsets.UTF_8));
+
+            // 立即预加载到界面
+            RoomFileModel model = new RoomFileModel();
+            model.setId(key);
+            model.setFilePath(filePath);
+            FileModeMain.getRoomFileMap().put(filePath, model);
+
+            // 提交到线程池启动监听
+            try {
+                FileModeMain.getThreadPool().execute(() -> FileModeMain.startMonitor(filePath));
+                msg.setMessage("直播间 [" + key + "] 已添加，正在启动监控...");
+            } catch (RejectedExecutionException e) {
+                msg.setCode(1);
+                msg.setMessage("线程池已满，无法启动新监听。文件已保存，下次扫描时自动启动。");
+            }
+        } catch (Exception e) {
+            msg.setCode(1);
+            msg.setMessage("添加失败: " + e.getMessage());
+            System.err.println("actionAddRoom 错误: " + e.getMessage());
+        }
     }
 
     private void videoParsing(Message msg, Map<String, String> query) {

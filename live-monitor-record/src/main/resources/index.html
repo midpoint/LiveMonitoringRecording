@@ -215,6 +215,19 @@
                         class="ml-2 px-3 py-1.5 bg-danger text-white rounded-lg text-sm hover:bg-danger/80 transition-colors focus:outline-none">
                     <i class="fa fa-stop mr-1"></i>全部停止监控
                 </button>
+                <!-- 添加直播间 -->
+                <span class="ml-4 text-sm text-gray-500">|</span>
+                <select id="add-platform" class="ml-3 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <option value="DouYin">抖音</option>
+                    <option value="Bili">B站</option>
+                    <option value="KuaiShou">快手</option>
+                </select>
+                <input id="add-roomid" type="text" placeholder="直播间ID"
+                       class="ml-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-36 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                <button id="add-room-btn" onclick="actionAddRoom()"
+                        class="ml-2 px-3 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/80 transition-colors focus:outline-none">
+                    <i class="fa fa-plus mr-1"></i>添加监控
+                </button>
             </div>
         </div>
 
@@ -895,6 +908,35 @@
             }).then((data) => {
                 data.title = "批量操作结果";
                 showActionAfterModal(data);
+                if (data.code === 0) {
+                    handleManualRefresh();
+                }
+            });
+        });
+    }
+
+    function actionAddRoom() {
+        const platform = document.getElementById("add-platform").value;
+        const roomId = document.getElementById("add-roomid").value.trim();
+        if (!roomId) {
+            alert("请输入直播间ID");
+            return;
+        }
+        const btn = document.getElementById("add-room-btn");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>添加中';
+        showActionBeforeModal((key) => {
+            actionRequest("addRoom", {
+                platform: platform,
+                roomId: roomId,
+                isRecord: true,
+                actionKey: key,
+            }).then((data) => {
+                data.title = "添加直播间";
+                showActionAfterModal(data);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-plus mr-1"></i>添加监控';
+                document.getElementById("add-roomid").value = "";
                 if (data.code === 0) {
                     handleManualRefresh();
                 }
