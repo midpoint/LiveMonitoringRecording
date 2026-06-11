@@ -17,6 +17,14 @@
 
 ![屏幕截图](image/8-10-2025_134650_localhost.jpeg)
 
+### 监控面板功能
+
+- **实时状态面板**：展示各平台直播间状态、观看人数、录制进度等
+- **批量控制按钮**：一键全部开启监控 / 一键全部停止监控
+- **网页密码保护**：支持设置访问密码，首次打开需输入密码才能访问
+- **自动锁屏**：配置无操作时间后自动锁定面板，需重新输入密码解锁
+- **在线视频解析**：支持抖音视频链接解析下载
+
 ## 项目结构
 
 ```
@@ -33,18 +41,17 @@
 
 - **JDK版本**：JDK 1.8 或更高
 - **操作系统**：
-    - 使用Java跨平台语言，理论上支持Windows，MacOS，Linux等所有主流操作系统，目前只验证了Windows操作系统
+    - 使用Java跨平台语言，理论上支持Windows，MacOS，Linux等所有主流操作系统，目前验证了Windows和Linux操作系统
 - **运行环境**：
     - JDK 1.8 或更高
     - 配置文件 xxxr.setting
-    - 激活凭证文件 xxxr-activation.lic (联系作者获取)
     - ffmpeg工具，根据不同的操作系统去下载对应的ffmpeg，下载完成后在配置文件中配置ffmpeg路径
 
 ## 启动方式 : [说明文档](instructions.md)
 
 ### 通用启动方式
 
-1. **编译打包**：项目打包后会在 `target/` 目录生成可执行 JAR 文件，**注意：运行程序需要激活凭证文件，获取文件请联系作者**
+1. **编译打包**：项目打包后会在 `target/` 目录生成可执行 JAR 文件
 
 2. **~~运行脚本命令~~**：
 
@@ -68,7 +75,7 @@
 
 3. **~~交互式启动~~**：不带参数运行后，通过命令行输入直播间信息启动
 
-4. **监听文件启动**：通过读取监听文件（文件名后缀为```.room.json```）的形式启动，一个直播间一个监听文件，将要监听的直播文件统一放入同一文件夹中，程序启动后会自动读取指定目录中的监听文件，可以一个进程同时监听多个直播间，监听文件格式：[示例](小兰花.room1.json)
+4. **监听文件启动**：通过读取监听文件（文件名后缀为```.room.json```）的形式启动，一个直播间一个监听文件，将要监听的直播文件统一放入同一文件夹中，程序启动后会自动读取指定目录中的监听文件，可以一个进程同时监听多个直播间。支持运行时动态新增/修改监听文件，程序每10秒自动扫描目录。监听文件格式：[示例](小兰花.room1.json)
 
 ```json
 //复制粘贴时，请去掉注释内容
@@ -178,8 +185,6 @@ record.FlvToMp4=true
 record.type=1
 # FFmpeg可执行文件路径
 record.ffmpegPath=bin/ffmpeg.exe
-# 激活凭证文件路径（默认路径: xxxr-activation.lic）
-# activation.filePath=xxxr-activation.lic
 # 是否循环监听直播（直播结束后重新监听）
 record.isLoop=true
 # 监听间隔时间（秒）
@@ -193,12 +198,27 @@ living.end.shortcut=
 Cookie.Bilibili=
 Cookie.DouYin=
 Cookie.KuaiShou=
+# 网页监控面板访问密码（为空则不启用密码保护）
+server.password=
+# 网页监控面板无操作自动锁屏时间（分钟），默认10
+server.lockTimeoutMin=10
 ```
 
-## 开发者信息
+## 更新日志
 
-- **作者**：ZhangHeng0805（星曦向荣）
-- **项目地址
-  **：[Gitee 仓库](https://gitee.com/ZhangHeng0805/LiveMonitoringRecording) | [GitHub 仓库](https://github.com/ZhangHeng0805/LiveMonitoringRecording)
-- **演示视频**: [bilibili](https://www.bilibili.com/video/BV1JMhzzuE1G/) |  [抖音](https://v.douyin.com/uPsZUQICC7w/)
-- **交流QQ群**：573648936 ![573648936](image/4a074f80d4f2ed6935e084f768857458.jpg)
+### 2026-06-11
+
+- **网页面板密码保护**：支持设置 `server.password` 配置访问密码，首次打开需要输入密码；配合 `server.lockTimeoutMin` 实现无操作自动锁屏（默认10分钟）
+- **批量控制按钮**：监控面板新增「全部开启监控」和「全部停止监控」按钮，一键控制所有直播间
+- **isLoop 修复**：修复系统托盘图标因 isLoop 被错误覆盖而消失的问题
+- **初始化失败 fallback**：监听初始化失败时不再直接崩溃，改为等待10秒后自动重试；昵称获取失败时使用房间ID作为备用名继续监控
+- **Cookie.DouYin**：新增抖音 Cookie 配置支持，解决验证码问题
+- **定时扫描**：支持运行时每10秒自动扫描目录新增的监听文件
+- **预加载机制**：修复新增文件在界面中不显示的问题，防止重复提交
+- **移除激活验证**：不再需要激活凭证文件
+
+## 项目地址
+
+- **GitHub 仓库**：https://github.com/midpoint/LiveMonitoringRecording
+- **原项目地址**：[Gitee](https://gitee.com/ZhangHeng0805/LiveMonitoringRecording) | [GitHub](https://github.com/ZhangHeng0805/LiveMonitoringRecording)
+- **演示视频**: [bilibili](https://www.bilibili.com/video/BV1JMhzzuE1G/) | [抖音](https://v.douyin.com/uPsZUQICC7w/)
