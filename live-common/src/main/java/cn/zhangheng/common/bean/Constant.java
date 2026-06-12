@@ -19,7 +19,7 @@ public class Constant {
     //默认最小监听间隔延时（秒）
     public final static int delayIntervalSec = 10;
     //默认最大监听线程
-    public final static int maxMonitorThreads = 10;
+    public final static int maxMonitorThreads = 50;
     //默认监听平台服务端口
     public final static int monitorServerPort = 8005;
     //设备标识ID
