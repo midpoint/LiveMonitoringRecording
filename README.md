@@ -20,6 +20,7 @@
 ### 监控面板功能
 
 - **实时状态面板**：展示各平台直播间状态、观看人数、录制进度等
+- **网页添加直播间**：直接在面板中选择平台、输入直播间ID，一键添加监控（自动生成 `.room.json` 文件）
 - **批量控制按钮**：一键全部开启监控 / 一键全部停止监控
 - **网页密码保护**：支持设置访问密码，首次打开需输入密码才能访问
 - **自动锁屏**：配置无操作时间后自动锁定面板，需重新输入密码解锁
@@ -78,27 +79,15 @@
 4. **监听文件启动**：通过读取监听文件（文件名后缀为```.room.json```）的形式启动，一个直播间一个监听文件，将要监听的直播文件统一放入同一文件夹中，程序启动后会自动读取指定目录中的监听文件，可以一个进程同时监听多个直播间。支持运行时动态新增/修改监听文件，程序每10秒自动扫描目录。监听文件格式：[示例](小兰花.room1.json)
 
 ```json
-//复制粘贴时，请去掉注释内容
 {
-  //是否录制
-  "isRecord": true,
-  //直播间ID
+  "isRecord": false,
   "id": "622216334529",
-  //直播平台[DouYin:抖音,Bili:B站,KuaiShou:快手]
   "platform": "DouYin",
-  //直播设置中的配置可选填，填写后覆盖配置文件中的配置
   "setting": {
     "runMode": "FILE",
-    //选填，监听刷新间隔时间
-    "delayIntervalSec": 30,
-    //选填，监听通知接口地址
     "xiZhiUrl": "",
-    //选填，是否开启抖音弹幕记录
-    "openSubtitle": true,
-    //选填，根据直播平台配置Cookie
-    "cookieBili": "",
-    "cookieDouYin": "",
-    "cookieKuaiShou": ""
+    "delayIntervalSec": 30,
+    "openSubtitle": true
   }
 }
 ```
@@ -189,6 +178,8 @@ record.ffmpegPath=bin/ffmpeg.exe
 record.isLoop=true
 # 监听间隔时间（秒）
 monitor.delayIntervalSec=30
+# 最大同时监听线程数，默认50
+#monitor.maxMonitorThreads=50
 #是否隐藏浏览器（默认隐藏）
 #monitor.browserHeadless=false
 # 直播开始/结束触发的快捷键（英文小写，逗号分隔）
@@ -205,6 +196,11 @@ server.lockTimeoutMin=10
 ```
 
 ## 更新日志
+
+### 2026-06-14
+
+- **网页添加直播间**：监控面板新增平台选择+房间号输入框，一键添加监控，自动生成 `.room.json` 文件并启动监听
+- **最大线程数提升**：同时监听上限从 10 → 50（`monitor.maxMonitorThreads`）
 
 ### 2026-06-11
 

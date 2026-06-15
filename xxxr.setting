@@ -19,6 +19,8 @@ record.isLoop=true
 record.openSubtitle=true
 #监听间隔时长（秒）
 monitor.delayIntervalSec=30
+#最大同时监听线程数，默认50
+#monitor.maxMonitorThreads=50
 #是否隐藏监听浏览器
 #monitor.browser.headless=false
 #监听浏览器是否每次打开页面时重置状态
